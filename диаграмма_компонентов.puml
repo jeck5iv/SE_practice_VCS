@@ -1,0 +1,94 @@
+@startuml
+skinparam componentStyle rectangle
+title Компонентная диаграмма системы контроля версий
+
+' Внешний интерфейс
+package "CLI (интерфейс пользователя)" {
+  [CLI Application] --> [Command Parser] : команды от пользователя
+}
+
+' Логика приложения
+package "Core Layer (Логика репозитория)" {
+  [Command Parser] --> [Repository API] : вызывает действия
+
+  [Repository API] --> [Branch Manager]
+  [Repository API] --> [Commit Manager]
+  [Repository API] --> [Merge Manager]
+  [Repository API] --> [Index Manager]
+  [Repository API] --> [Remote Client]
+
+  [Merge Manager] --> [Conflict Resolver] : разрешение конфликтов
+}
+
+' Модель и состояние
+package "Model (Данные и сущности)" {
+  component "Branch" 
+  component "Commit"
+  component "FileVersion"
+  component "Index"
+  component "User"
+
+  [Branch Manager] --> Branch
+  [Commit Manager] --> Commit
+  [Index Manager] --> Index
+  [Commit] --> FileVersion
+}
+
+' Работа с диском
+package "Filesystem + Сжатие" {
+  component "WorkingDirectory"
+  component "StorageManager"
+  component "Hasher"
+  component "Compressor"
+
+  [Commit Manager] --> [Hasher]
+  [FileVersion] --> [Compressor]
+  [Repository API] --> [StorageManager]
+  [Index Manager] --> [WorkingDirectory]
+}
+
+' Удаленный репозиторий
+package "Remote Repository (Сервер)" {
+  [Remote Client] --> [Remote Repository API] : clone, fetch, pull, push
+  [Remote Repository API] --> [StorageManager]
+  [Remote Repository API] --> [Hasher]
+  [Remote Repository API] --> [Compressor]
+}
+
+' Пояснения
+note top of [CLI Application]
+  Пользователь работает через CLI-команды:
+  commit, checkout, log, merge, push, pull, clone
+end note
+
+note top of [Repository API]
+  Repository — центральный компонент.
+  Управляет логикой репозитория как библиотека.
+  Используется и CLI, и другими приложениями.
+end note
+
+note top of [Commit]
+  Commit содержит:
+  - hash, message, author, date
+  - ссылки на файлы (FileVersion)
+  - parent и merged_parents
+end note
+
+note right of [FileVersion]
+  Используется компрессия (дельты)
+  для хранения версий файлов.
+  Обеспечивает доступ к любой версии.
+end note
+
+note right of [StorageManager]
+  Работа с файловой системой:
+  сохранение/загрузка blob'ов и коммитов.
+end note
+
+note left of [Remote Repository API]
+  Серверная часть: принимает push,
+  отправляет данные при fetch/pull.
+  Хранит историю в сжатом виде.
+end note
+
+@enduml
